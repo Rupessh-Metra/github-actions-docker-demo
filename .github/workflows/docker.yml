@@ -1,157 +1,74 @@
 name: Build, Test and Deploy Docker Application
- 
+
 on:
-
   push:
-
     branches:
-
       - main
- 
+
 jobs:
- 
-  # ==========================================
 
+  # ==========================================
   # JOB 1: CI
-
   # Runs on GitHub's hosted runner
-
   # ==========================================
-
   build:
-
     name: Build and Push Docker Image
-
     runs-on: ubuntu-latest
- 
+
     steps:
- 
-      # Checkout source code
 
       - name: Checkout code
-
         uses: actions/checkout@v4
- 
-      # Build Docker image
 
       - name: Build Docker image
-
-        run: |
-
-          docker build \
-
-            -t rupessh/github-actions-docker-demo:latest .
- 
-      # Run container for testing
+        run: docker build -t rupessh/github-actions-docker-demo:latest .
 
       - name: Run container for testing
-
-        run: |
-
-          docker run -d \
-
-            --name github-actions-test \
-
-            -p 8080:8080 \
-
-            rupessh/github-actions-docker-demo:latest
- 
-      # Test application
+        run: docker run -d --name github-actions-test -p 8080:8080 rupessh/github-actions-docker-demo:latest
 
       - name: Test application
-
         run: |
-
           sleep 5
-
           curl --fail http://localhost:8080
- 
-      # Login to Docker Hub
 
       - name: Login to Docker Hub
-
         uses: docker/login-action@v3
-
         with:
-
           username: ${{ secrets.DOCKERHUB_USERNAME }}
-
           password: ${{ secrets.DOCKERHUB_TOKEN }}
- 
-      # Push image to Docker Hub
 
       - name: Push Docker image
-
-        run: |
-
-          docker push \
-
-            rupessh/github-actions-docker-demo:latest
- 
-      # Cleanup test container
+        run: docker push rupessh/github-actions-docker-demo:latest
 
       - name: Cleanup test container
-
         if: always()
+        run: docker rm -f github-actions-test || true
 
-        run: |
 
-          docker rm -f github-actions-test || true
- 
- 
   # ==========================================
-
   # JOB 2: CD
-
   # Runs on YOUR WSL self-hosted runner
-
   # ==========================================
-
   deploy:
-
     name: Deploy to WSL
-
     needs: build
- 
     runs-on: [self-hosted, linux, x64]
- 
+
     steps:
- 
-      # Pull latest image from Docker Hub
 
       - name: Pull latest Docker image
-
-        run: |
-
-          docker pull rupessh/github-actions-docker-demo:latest
- 
-      # Stop and remove previous container
+        run: docker pull rupessh/github-actions-docker-demo:latest
 
       - name: Remove old container
-
-        run: |
-
-          docker rm -f github-actions-demo || true
- 
-      # Start new container
+        run: docker rm -f github-actions-demo || true
 
       - name: Start application
-
-        run: |
-
-          docker run -d \
-
-            --name github-actions-demo \
-
-            -p 8080:8080 \
-
-            rupessh/github-actions-docker-demo:latest
- 
-      # Show running container
+        run: docker run -d --name github-actions-demo -p 8080:8080 rupessh/github-actions-docker-demo:latest
 
       - name: Verify deployment
-
         run: |
-
+          sleep 3
           docker ps
- 
+
+      - name: Verify application
+        run: curl --fail http://localhost:8080
