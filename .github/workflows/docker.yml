@@ -1,0 +1,55 @@
+name: Build, Test and Push Docker Image
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # 1. Checkout repository
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Build Docker image
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t rupessh/github-actions-docker-demo:latest .
+
+      # 3. Run container
+      - name: Run Docker container
+        run: |
+          docker run -d \
+            --name github-actions-demo \
+            -p 8080:8080 \
+            rupessh/github-actions-docker-demo:latest
+
+      # 4. Test application
+      - name: Test application
+        run: |
+          sleep 5
+          curl --fail http://localhost:8080
+
+      # 5. Login to Docker Hub
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # 6. Push image to Docker Hub
+      - name: Push Docker image
+        run: |
+          docker push \
+            rupessh/github-actions-docker-demo:latest
+
+      # 7. Cleanup
+      - name: Cleanup container
+        if: always()
+        run: |
+          docker rm -f github-actions-demo
